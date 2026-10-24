@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>五國鈔票：長青記憶考驗</title>
+<style>
+    /* 護眼暖色調主題 */
+    :root {
+        --primary-bg: #FDFEFE; /* 極度乾淨的暖白 */
+        --text-color: #2C3E50; 
+        --accent: #D35400; 
+        --board-bg: #F4F6F7; /* 柔和的卡牌區背景 */
+    }
+    body {
+        margin: 0;
+        padding: 0;
+        background-color: var(--primary-bg);
+        color: var(--text-color);
+        font-family: "Microsoft JhengHei", Arial, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100vh;
+        overflow-x: hidden;
+    }
+    h1 { 
+        text-align: center; 
+        color: #B9770E; 
+        font-size: 2.8em; 
+        margin-top: 20px;
+        margin-bottom: 10px;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.1); 
+    }
+    p {
+        font-size: 1.5em; 
+        line-height: 1.6;
+        margin: 10px 0;
+        font-weight: bold;
+        color: #34495E;
+    }
+    
+    #game-container {
+        width: 95%;
+        max-width: 1100px;
+        margin: 15px auto;
+        padding: 30px;
+        background: #FFFFFF;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        border: 5px solid #F8C471; 
+    }
+    
+    .screen { display: none; flex-direction: column; align-items: center; text-align: center; }
+    .screen.active { display: flex; }
+    
+    .designer-text {
+        color: #7D6608;
+        font-size: 1.4em;
+        font-weight: bold;
+        margin-top: 20px;
+        background: #FCF3CF;
+        padding: 8px 20px;
+        border-radius: 12px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border: 2px dashed #F1C40F;
+    }
+
+    /* 年齡選擇器樣式 */
+    .age-selector {
+        margin: 25px 0 20px 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 15px;
+        background: #FEF9E7;
+        padding: 20px 30px;
+        border-radius: 15px;
+        border: 3px dashed #E67E22;
+        box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
+    }
+    .age-selector label { font-size: 1.6em; font-weight: bold; color: #D35400; }
+    .age-selector select {
+        font-size: 1.5em; padding: 12px 25px; border-radius: 12px;
+        border: 3px solid #E67E22; background-color: #FFF; color: #2C3E50;
+        font-weight: bold; cursor: pointer; outline: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    button {
+        padding: 18px 50px; font-size: 26px; font-weight: 900; margin-top: 20px;
+        background: linear-gradient(135deg, #E67E22, #D35400); color: white;
+        border: none; border-radius: 15px; cursor: pointer;
+        box-shadow: 0 8px 15px rgba(211, 84, 0, 0.3);
+        letter-spacing: 2px;
+    }
+    button:hover { transform: scale(1.05); background: linear-gradient(135deg, #D35400, #BA4A00); }
+
+    /* 遊戲資訊面板 */
+    #info-panel {
+        display: flex; justify-content: space-between; width: 100%; margin-bottom: 20px;
+        font-size: 1.6em; border-bottom: 4px solid #D5DBDB; padding-bottom: 15px;
+        font-weight: bold; color: #2874A6;
+    }
+
+    .board {
+        display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; 
+        perspective: 1000px; padding: 20px; background: var(--board-bg); 
+        border-radius: 15px; border: 2px solid #E5E8E8;
+    }
+
+    /* 卡牌固定超大尺寸 */
+    .card {
+        width: 150px; height: 100px; position: relative; cursor: pointer;
+        transform-style: preserve-3d; transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1); 
+    }
+
+    /* 成功配對的開心跳躍特效 */
+    .card.matched {
+        animation: successPulse 0.6s ease;
+    }
+    @keyframes successPulse {
+        0% { transform: rotateY(180deg) scale(1); }
+        50% { transform: rotateY(180deg) scale(1.15); box-shadow: 0 0 20px #27AE60; }
+        100% { transform: rotateY(180deg) scale(1); }
+    }
+
+    @media (max-width: 600px) {
+        h1 { font-size: 2.2em; }
+        p { font-size: 1.2em; }
+        #info-panel { font-size: 1.2em; flex-wrap: wrap; justify-content: space-around; gap: 10px;}
+        .age-selector label { font-size: 1.3em; }
+        .age-selector select { font-size: 1.2em; padding: 10px; }
+        .card { width: 110px; height: 75px; gap: 8px; } /* 手機版依舊巨大清晰 */
+        button { font-size: 20px; padding: 15px 30px; }
+    }
+
+    .card.flipped { transform: rotateY(180deg); }
+    .card-face {
+        position: absolute; width: 100%; height: 100%; backface-visibility: hidden;
+        border-radius: 10px; box-shadow: 0 5px 12px rgba(0,0,0,0.2);
+    }
+    
+    /* 正面鈔票區 */
+    .card-front {
+        background: #FFF; transform: rotateY(180deg); display: flex;
+        align-items: center; justify-content: center; padding: 4px; border: 3px solid #BDC3C7;
+    }
+    .banknote-inner {
+        width: 100%; height: 100%; border: 2px dashed rgba(0,0,0,0.15); border-radius: 6px;
+        position: relative; display: flex; flex-direction: column; justify-content: center; 
+        align-items: center; padding: 2px;
+    }
+
+    .note-center {
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        width: 95%; height: 95%; background: rgba(255, 255, 255, 0.95);
+        border-radius: 6px; border: 2px solid rgba(0,0,0,0.05); z-index: 3;
+    }
+    .note-flag { font-size: 34px; margin-bottom: 2px; line-height: 1; filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.2)); }
+    .note-name {
+        font-size: 21px; font-weight: 900; color: #111; text-align: center;
+        line-height: 1.2; width: 100%; word-wrap: break-word;
+        /* 大師級白邊光暈，確保在任何底色下都極度清晰 */
+        text-shadow: 1px 1px 0 #FFF, -1px -1px 0 #FFF, 1px -1px 0 #FFF, -1px 1px 0 #FFF, 0px 2px 3px rgba(0,0,0,0.3);
+    }
+
+    @media (max-width: 600px) {
+        .note-center { width: 98%; height: 98%; padding: 2px; }
+        .note-flag { font-size: 24px; }
+        .note-name { font-size: 16px; }
+    }
+
+    /* 柔和且高辨識度卡背設計 (1-5關) */
+    .bg-lv1 { background: #AAB7B8; } 
+    .bg-lv2 { background: linear-gradient(135deg, #D4E6F1, #7FB3D5); } 
+    .bg-lv3 { background: repeating-linear-gradient(45deg, #D5F5E3, #D5F5E3 15px, #82E0AA 15px, #82E0AA 30px); } 
+    .bg-lv4 { background: radial-gradient(circle, #FDEBD0, #F39C12); } 
+    .bg-lv5 { background: conic-gradient(from 90deg, #FADBD8, #E74C3C); } 
+
+    /* 結算頁面 */
+    .result-stats {
+        background: #F4F6F7; padding: 25px; border-radius: 15px; margin: 15px 0;
+        width: 100%; max-width: 650px; border: 4px solid #AEB6BF;
+        box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
+    }
+    .result-stats p { margin: 10px 0; font-size: 1.8em; color: #34495E;}
+    .rank-title { font-size: 4em; color: #C0392B; margin-bottom: 5px; font-weight: 900; text-shadow: 2px 2px 0px #FAD7A1;}
+    .rank-subtitle { font-size: 1.5em; color: #E67E22; font-weight: bold; margin-bottom: 15px;}
+
+    /* 暖心祝福語區塊 */
+    .blessing-box {
+        margin: 20px 0;
+        padding: 25px 35px;
+        background: linear-gradient(135deg, #FFF9E6, #FFF2CC);
+        border: 3px dashed #F39C12;
+        border-radius: 15px;
+        font-size: 1.6em;
+        color: #D35400;
+        line-height: 1.6;
+        max-width: 750px;
+        font-weight: bold;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    }
+
+    @media (max-width: 600px) {
+        .blessing-box { font-size: 1.3em; padding: 15px 20px; }
+        .rank-title { font-size: 3em; }
+        .result-stats p { font-size: 1.4em; }
+    }
+
+    /* 開局「開始！」提示動畫 */
+    #start-msg {
+        position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.5);
+        font-size: 8em; color: #E74C3C; font-weight: 900;
+        text-shadow: 4px 4px 0 #FFF, -4px -4px 0 #FFF, 4px -4px 0 #FFF, -4px 4px 0 #FFF, 0 15px 30px rgba(0,0,0,0.4);
+        z-index: 1000; opacity: 0; pointer-events: none;
+        transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    #start-msg.show { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    @media (max-width: 600px) { #start-msg { font-size: 5.5em; } }
+</style>
+</head>
+<body>
+
+<div id="game-container">
+    <!-- 首頁 -->
+    <div id="intro-screen" class="screen active">
+        <h1>💵 五國鈔票記憶遊戲 💵</h1>
+        <p>這是一款可以訓練大腦、預防退化的開心翻牌遊戲！<br>全部共 5 關，字體清晰巨大，破關後會測出您的「心理年齡」喔！</p>
+        
+        <div class="age-selector">
+            <label for="age-group">👉 請先選擇您的年齡組別：</label>
+            <select id="age-group">
+                <option value="6">60 - 70 歲組 (讓您慢慢看)</option>
+                <option value="9">71 - 75 歲組 (時間很充足)</option>
+                <option value="12">76 - 80 歲組 (絕對不著急)</option>
+                <option value="15">81 - 85 歲組 (時間特別長)</option>
+                <option value="18">86 - 90 歲組 (讓您看個夠)</option>
+                <option value="21">91 歲以上組 (輕鬆無壓力)</option>
+            </select>
+        </div>
+
+        <p class="designer-text">高師劉世閔設計</p>
+        <button onclick="startGame()">開始開心測驗</button>
+    </div>
+
+    <!-- 遊戲頁 -->
+    <div id="game-screen" class="screen">
+        <div id="info-panel">
+            <span id="level-display">關卡: 1 / 5</span>
+            <span id="flips-display">翻牌: 0</span>
+            <span id="time-display" style="color: #E67E22;">記憶中...</span>
+        </div>
+        <div id="board" class="board"></div>
+    </div>
+
+    <!-- 結算頁 -->
+    <div id="result-screen" class="screen">
+        <h1>🎉 測驗完成！您真的太厲害了 🎉</h1>
+        <div class="result-stats">
+            <p>花費總時間：<span id="final-time" style="color:#D35400; font-weight:bold;"></span> 秒</p>
+            <p>翻牌總次數：<span id="final-flips" style="color:#D35400; font-weight:bold;"></span> 次</p>
+        </div>
+        
+        <h2>經系統精密計算，您大腦的【心理年齡】為：</h2>
+        <div id="rank-title" class="rank-title"></div>
+        <div class="rank-subtitle">保持大腦活躍，您是最棒的！</div>
+        
+        <!-- 暖心祝福語區塊 -->
+        <div id="blessing-message" class="blessing-box"></div>
+        
+        <p class="designer-text">高師劉世閔設計</p>
+        <button onclick="location.reload()">再玩一次，挑戰更年輕</button>
+    </div>
+</div>
+
+<!-- 開始提示動畫層 -->
+<div id="start-msg">開始！</div>
+
+<script>
+    // 5 關設定，全數採用「兩兩配對」，張數循序漸進 (8張 -> 12張 -> 16張 -> 20張 -> 24張)
+    const levelsData = [
+        { level: 1, name: "台灣", flag: "🇹🇼", groups: 4, chars: ["100元:#ff8da1", "200元:#a5d6a7", "500元:#d7ccc8", "1000元:#90caf9", "2000元:#ce93d8", "舊版50元:#80cbc4", "舊版100元:#81c784"] },
+        { level: 2, name: "美國", flag: "🇺🇸", groups: 6, chars: ["$1:#81c784", "$2:#aed581", "$5:#e1bee7", "$10:#ffe082", "$20:#a5d6a7", "$50:#f8bbd0", "$100:#80deea"] },
+        { level: 3, name: "日本", flag: "🇯🇵", groups: 8, chars: ["1000円:#90caf9", "2000円:#a5d6a7", "5000円:#ce93d8", "10000円:#e6c280", "新版1000円:#64b5f6", "新版5000円:#ba68c8", "舊版500円:#9fa8da"] },
+        { level: 4, name: "英國", flag: "🇬🇧", groups: 10, chars: ["£1:#81c784", "£5:#80deea", "£10:#ffb74d", "£20:#ce93d8", "£50:#ef5350", "£100:#ffcc80", "蘇格蘭£5:#64b5f6", "塑膠£10:#ffa726", "舊版£20:#9575cd", "舊版£1:#29b6f6"] },
+        { level: 5, name: "歐元", flag: "🇪🇺", groups: 12, chars: ["€5:#cfd8dc", "€10:#ef9a9a", "€20:#90caf9", "€50:#ffb74d", "€100:#a5d6a7", "€200:#fff59d", "€500:#ce93d8", "新版€5:#b0bec5", "新版€10:#e57373", "新版€20:#64b5f6", "新版€50:#ff9800", "新版€100:#81c784"] }
+    ];
+
+    // 過關激勵語錄 (換關時隨機出現)
+    const cheers = ["太神了！", "記憶力真好！", "您真棒！", "眼明手快！", "繼續保持！", "超厲害！"];
+
+    // 長輩暖心祝福語庫 (結算時出現)
+    const blessings = [
+        "不管測出來幾歲，您在我們心中永遠是最有活力的不老頑童！願您平安喜樂，天天都有好心情，享受每一刻的美好時光！",
+        "您的笑容比黃金還要耀眼！年齡真的只是數字，您的大腦充滿活力與無限可能。祝福您天天開心，健康長壽！",
+        "太棒了！您的記憶力與專注力令人佩服。歲月帶走的是時間，留下的是您的智慧與風采。願您每天充滿歡笑與活力！",
+        "大腦就像肌肉，越練越年輕！您今天的表現太精彩了。祝福您福如東海，每天吃得下、睡得好、笑得開懷！",
+        "年輕是一種心態，而您今天完美展現了青春的活力！願這份喜悅伴隨您，祝福您身體健康，天天都有滿滿的幸福感！",
+        "玩得開心最重要！您的精氣神真是讓人讚嘆。祝您常保這份童心，日子過得比蜜還甜，天天平安又喜樂！"
+    ];
+    const rand = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+    let currentLevelIdx = 0, totalFlips = 0, totalTime = 0, timerInterval = null;
+    let flippedCards = []; 
+    let lockBoard = false, matchedGroups = 0;
+    let targetMatches = 0; 
+
+    function shuffleArray(array) {
+        let currentIndex = array.length, randomIndex;
+        while (currentIndex != 0) {
+            randomIndex = Math.floor(Math.random() * currentIndex);
+            currentIndex--;
+            [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+        }
+        return array;
+    }
+
+    function switchScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(screenId).classList.add('active');
+    }
+
+    function startGame() {
+        switchScreen('game-screen');
+        loadLevel(currentLevelIdx);
+    }
+
+    function loadLevel(idx) {
+        const levelConfig = levelsData[idx];
+        matchedGroups = 0; flippedCards = []; 
+        
+        clearInterval(timerInterval); 
+        document.getElementById('time-display').innerText = `記憶中... (請看牌)`;
+        document.getElementById('time-display').style.color = '#E67E22';
+        document.getElementById('level-display').innerText = `關卡: ${levelConfig.level} / 5 (${levelConfig.name})`;
+
+        const board = document.getElementById('board');
+        board.innerHTML = '';
+        
+        let pool = levelConfig.chars.map(c => {
+            let [val, color] = c.split(':');
+            return { flag: levelConfig.flag, val, color };
+        });
+
+        let shuffledPool = shuffleArray([...pool]);
+        targetMatches = Math.min(levelConfig.groups, shuffledPool.length); 
+        let selectedNotes = shuffledPool.slice(0, targetMatches);
+        
+        // 全部統一為兩兩配對
+        let deck = [...selectedNotes, ...selectedNotes];
+        deck = shuffleArray(deck);
+
+        deck.forEach(item => {
+            const cardElement = document.createElement('div');
+            cardElement.classList.add('card', 'flipped'); 
+            const uid = `${item.flag}-${item.val}`;
+            cardElement.dataset.name = uid;
+
+            const cardBack = document.createElement('div');
+            cardBack.classList.add('card-face', `bg-lv${levelConfig.level}`);
+
+            const cardFront = document.createElement('div');
+            cardFront.classList.add('card-face', 'card-front');
+            
+            // 智慧斷行系統 (讓前綴字縮小換行，主體數字放大)
+            let displayVal = item.val;
+            const prefixes = ["舊版", "新版", "紀念", "塑膠", "蘇格蘭"];
+            for (let p of prefixes) {
+                if (displayVal.startsWith(p) && displayVal.length > p.length) {
+                    displayVal = `<span style="font-size: 0.75em; color: #D35400;">${p}</span><br>${displayVal.substring(p.length)}`;
+                    break;
+                }
+            }
+
+            cardFront.innerHTML = `
+                <div class="banknote-inner" style="background-color: ${item.color};">
+                    <div class="note-center">
+                        <div class="note-flag">${item.flag}</div>
+                        <div class="note-name">${displayVal}</div>
+                    </div>
+                </div>
+            `;
+
+            cardElement.appendChild(cardBack);
+            cardElement.appendChild(cardFront);
+            cardElement.addEventListener('click', flipCard);
+            board.appendChild(cardElement);
+        });
+
+        lockBoard = true; 
+        startPreviewPhase(idx);
+    }
+
+    function startPreviewPhase(idx) {
+        // 讀取年齡基礎秒數
+        const baseTimeSec = parseInt(document.getElementById('age-group').value);
+        let previewTime = baseTimeSec * 1000;
+        
+        // 第 3, 4 關加 2 秒；第 5 關加 5 秒
+        if (idx === 2 || idx === 3) previewTime = (baseTimeSec + 2) * 1000;
+        if (idx === 4) previewTime = (baseTimeSec + 5) * 1000;
+
+        setTimeout(() => {
+            document.querySelectorAll('.card').forEach(c => c.classList.remove('flipped'));
+
+            setTimeout(() => {
+                const startMsg = document.getElementById('start-msg');
+                startMsg.classList.add('show');
+                
+                document.getElementById('time-display').style.color = '#2874A6';
+                document.getElementById('time-display').innerText = `時間: ${totalTime}秒`;
+                timerInterval = setInterval(() => {
+                    totalTime++;
+                    document.getElementById('time-display').innerText = `時間: ${totalTime}秒`;
+                }, 1000);
+                
+                lockBoard = false;
+
+                setTimeout(() => {
+                    startMsg.classList.remove('show');
+                }, 1000);
+            }, 600); 
+        }, previewTime);
+    }
+
+    function flipCard() {
+        if (lockBoard) return;
+        if (flippedCards.includes(this)) return; // 防連點同一張
+
+        this.classList.add('flipped');
+        flippedCards.push(this);
+        totalFlips++;
+        document.getElementById('flips-display').innerText = `翻牌: ${totalFlips}`;
+
+        if (flippedCards.length === 2) { 
+            checkForMatch();
+        }
+    }
+
+    function checkForMatch() {
+        if (flippedCards[0].dataset.name === flippedCards[1].dataset.name) {
+            disableCards();
+        } else {
+            unflipCards();
+        }
+    }
+
+    function disableCards() {
+        // 答對了！加上開心發光特效
+        flippedCards[0].classList.add('matched');
+        flippedCards[1].classList.add('matched');
+        
+        flippedCards.forEach(card => card.removeEventListener('click', flipCard));
+        matchedGroups++;
+        
+        if (matchedGroups === targetMatches) {
+            clearInterval(timerInterval); 
+            let cheerMsg = rand(cheers); // 隨機抓一句讚美
+            document.getElementById('time-display').innerHTML = `🎉 ${cheerMsg} 前往下一關...`;
+            document.getElementById('time-display').style.color = '#E74C3C';
+            
+            setTimeout(() => {
+                nextLevel();
+            }, 2500); 
+        }
+        resetBoard();
+    }
+
+    function unflipCards() {
+        lockBoard = true;
+        setTimeout(() => {
+            flippedCards.forEach(card => card.classList.remove('flipped'));
+            resetBoard();
+        }, 1500); // 舒適的蓋牌節奏
+    }
+
+    function resetBoard() {
+        flippedCards = [];
+        lockBoard = false;
+    }
+
+    function nextLevel() {
+        currentLevelIdx++;
+        if (currentLevelIdx < levelsData.length) {
+            loadLevel(currentLevelIdx);
+        } else {
+            endGame();
+        }
+    }
+
+    function endGame() {
+        clearInterval(timerInterval);
+        switchScreen('result-screen');
+        document.getElementById('final-time').innerText = totalTime;
+        document.getElementById('final-flips').innerText = totalFlips;
+
+        // 五關總共 40 組 (80張牌)，最少翻牌次數為 80 次
+        // 給長輩的門檻非常寬鬆，容易獲得年輕的評價！
+        const finalRanks = [
+            { title: "10-15 歲", maxFlips: 90, maxTime: 120 },
+            { title: "16-20 歲", maxFlips: 110, maxTime: 160 },
+            { title: "21-30 歲", maxFlips: 130, maxTime: 200 },
+            { title: "31-40 歲", maxFlips: 160, maxTime: 250 },
+            { title: "41-50 歲", maxFlips: 190, maxTime: 300 },
+            { title: "51-60 歲", maxFlips: 220, maxTime: 360 },
+            { title: "61-70 歲", maxFlips: 260, maxTime: 420 },
+            { title: "71-80 歲", maxFlips: 300, maxTime: 500 },
+            { title: "81-90 歲", maxFlips: 350, maxTime: 600 },
+            { title: "91 歲以上", maxFlips: Infinity, maxTime: Infinity }
+        ];
+
+        let finalRankTitle = finalRanks[finalRanks.length - 1].title;
+        for (let i = 0; i < finalRanks.length; i++) {
+            if (totalFlips <= finalRanks[i].maxFlips && totalTime <= finalRanks[i].maxTime) {
+                finalRankTitle = finalRanks[i].title;
+                break;
+            }
+        }
+        
+        // 顯示結果與隨機暖心祝福語
+        document.getElementById('rank-title').innerText = finalRankTitle;
+        document.getElementById('blessing-message').innerText = rand(blessings);
+    }
+</script>
+</body>
+</html>
